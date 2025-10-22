@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<!--
+Voice Chatbot Web Interface
+Author: Edhot Purwoko - Microsoft Indonesia
+License: MIT - Free to use
+Disclaimer: Provided "as is" without warranty. Use at your own risk.
+-->
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Chatbot - Azure OpenAI + Speech</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-container {
+            width: 90%;
+            max-width: 800px;
+            height: 80vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .chat-header h1 {
+            margin-bottom: 5px;
+        }
+
+        .chat-header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.bot .message-content {
+            background: white;
+            color: #333;
+            border: 1px solid #e1e5e9;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin: 0 10px;
+        }
+
+        .message.user .message-avatar {
+            background: #667eea;
+            color: white;
+        }
+
+        .message.bot .message-avatar {
+            background: #28a745;
+            color: white;
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e1e5e9;
+        }
+
+        .chat-input-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .chat-input:focus {
+            border-color: #667eea;
+        }
+
+        .send-button, .clear-button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .send-button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .send-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .send-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .clear-button {
+            background: #dc3545;
+            color: white;
+        }
+
+        .clear-button:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .voice-button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            background: #28a745;
+            color: white;
+        }
+
+        .voice-button:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .voice-button:active {
+            background: #dc3545;
+        }
+
+        .voice-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .voice-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .voice-status {
+            padding: 8px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+        .voice-status.available {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .voice-status.unavailable {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .recording-indicator {
+            display: none;
+            color: #dc3545;
+            font-weight: bold;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            margin: 10px 0;
+        }
+
+        .typing-indicator {
+            display: none;
+        }
+
+        .typing-indicator.show {
+            display: block;
+        }
+
+        .typing-dots {
+            display: inline-block;
+        }
+
+        .typing-dots span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #667eea;
+            margin: 0 1px;
+            animation: typing 1.4s infinite ease-in-out both;
+        }
+
+        .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes typing {
+            0%, 80%, 100% {
+                transform: scale(0);
+            } 40% {
+                transform: scale(1);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .chat-container {
+                width: 95%;
+                height: 90vh;
+            }
+            
+            .message-content {
+                max-width: 85%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>🤖 Voice Chatbot</h1>
+            <p>Powered by Azure OpenAI + Azure Speech</p>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    Halo! Saya adalah chatbot sederhana yang menggunakan Azure OpenAI. Silakan tanyakan apa saja kepada saya! 😊
+                </div>
+            </div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="typing-indicator">
+                🤖 Sedang mengetik
+                <div class="typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chat-input-container">
+            <div class="voice-status" id="voiceStatus">🔄 Checking voice status...</div>
+            <div class="recording-indicator" id="recordingIndicator">🎤 Recording... Speak now!</div>
+            
+            <div class="voice-controls">
+                <button class="voice-button" id="voiceChatButton" disabled>🎤 Voice Chat</button>
+                <button class="voice-button" id="listenButton" disabled>👂 Listen</button>
+                <button class="voice-button" id="testVoiceButton" disabled>🧪 Test Voice</button>
+            </div>
+            
+            <div class="chat-input-row">
+                <input type="text" class="chat-input" id="messageInput" placeholder="Ketik pesan Anda di sini atau gunakan voice chat..." maxlength="1000">
+                <button class="send-button" id="sendButton">Kirim</button>
+                <button class="voice-button" id="speakButton" disabled>🔊</button>
+                <button class="clear-button" id="clearButton">Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const clearButton = document.getElementById('clearButton');
+        const loading = document.getElementById('loading');
+        
+        // Voice elements
+        const voiceStatus = document.getElementById('voiceStatus');
+        const voiceChatButton = document.getElementById('voiceChatButton');
+        const listenButton = document.getElementById('listenButton');
+        const speakButton = document.getElementById('speakButton');
+        const testVoiceButton = document.getElementById('testVoiceButton');
+        const recordingIndicator = document.getElementById('recordingIndicator');
+        
+        let isVoiceEnabled = false;
+
+        // Function to add message to chat
+        function addMessage(content, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = isUser ? '👤' : '🤖';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            messageContent.textContent = content;
+            
+            if (isUser) {
+                messageDiv.appendChild(messageContent);
+                messageDiv.appendChild(avatar);
+            } else {
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(messageContent);
+            }
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Function to send message
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Add user message
+            addMessage(message, true);
+            messageInput.value = '';
+            
+            // Show loading
+            loading.style.display = 'block';
+            sendButton.disabled = true;
+            
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    addMessage(`Error: ${data.error}`, false);
+                } else {
+                    addMessage(data.response, false);
+                }
+            } catch (error) {
+                addMessage(`Error: ${error.message}`, false);
+            } finally {
+                loading.style.display = 'none';
+                sendButton.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        // Function to clear chat
+        async function clearChat() {
+            try {
+                const response = await fetch('/clear', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (response.ok) {
+                    chatMessages.innerHTML = `
+                        <div class="message bot">
+                            <div class="message-avatar">🤖</div>
+                            <div class="message-content">
+                                Riwayat percakapan telah dihapus. Mari mulai percakapan baru! 😊
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error clearing chat:', error);
+            }
+        }
+
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        clearButton.addEventListener('click', clearChat);
+        
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Voice functionality
+        async function checkVoiceStatus() {
+            try {
+                const response = await fetch('/voice/status');
+                const data = await response.json();
+                
+                isVoiceEnabled = data.speech_enabled;
+                
+                if (isVoiceEnabled) {
+                    voiceStatus.textContent = '🎤 Voice services available';
+                    voiceStatus.className = 'voice-status available';
+                    
+                    // Enable voice buttons
+                    voiceChatButton.disabled = false;
+                    listenButton.disabled = false;
+                    speakButton.disabled = false;
+                    testVoiceButton.disabled = false;
+                } else {
+                    voiceStatus.textContent = '❌ Voice services unavailable';
+                    voiceStatus.className = 'voice-status unavailable';
+                }
+            } catch (error) {
+                console.error('Error checking voice status:', error);
+                voiceStatus.textContent = '❌ Error checking voice status';
+                voiceStatus.className = 'voice-status unavailable';
+            }
+        }
+
+        async function startVoiceChat() {
+            if (!isVoiceEnabled) return;
+            
+            try {
+                voiceChatButton.disabled = true;
+                recordingIndicator.style.display = 'block';
+                
+                const response = await fetch('/voice/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    addMessage(`Error: ${data.error}`, false);
+                } else {
+                    addMessage(data.user_input, true);
+                    addMessage(data.bot_response, false);
+                }
+            } catch (error) {
+                addMessage(`Error: ${error.message}`, false);
+            } finally {
+                voiceChatButton.disabled = false;
+                recordingIndicator.style.display = 'none';
+            }
+        }
+
+        async function listenToSpeech() {
+            if (!isVoiceEnabled) return;
+            
+            try {
+                listenButton.disabled = true;
+                recordingIndicator.style.display = 'block';
+                
+                const response = await fetch('/voice/listen', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    addMessage(`Error: ${data.error}`, false);
+                } else {
+                    messageInput.value = data.text;
+                    addMessage(`🎤 Detected: ${data.text}`, false);
+                }
+            } catch (error) {
+                addMessage(`Error: ${error.message}`, false);
+            } finally {
+                listenButton.disabled = false;
+                recordingIndicator.style.display = 'none';
+            }
+        }
+
+        async function speakText() {
+            if (!isVoiceEnabled) return;
+            
+            const text = messageInput.value.trim();
+            if (!text) {
+                addMessage('Please enter text to speak', false);
+                return;
+            }
+            
+            try {
+                speakButton.disabled = true;
+                
+                const response = await fetch('/voice/speak', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    addMessage(`Error: ${data.error}`, false);
+                } else {
+                    addMessage(`🔊 Speaking: ${text}`, false);
+                }
+            } catch (error) {
+                addMessage(`Error: ${error.message}`, false);
+            } finally {
+                speakButton.disabled = false;
+            }
+        }
+
+        async function testVoiceServices() {
+            if (!isVoiceEnabled) return;
+            
+            try {
+                testVoiceButton.disabled = true;
+                addMessage('🧪 Testing voice services...', false);
+                
+                const response = await fetch('/voice/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    addMessage(`❌ Voice test failed: ${data.error}`, false);
+                } else {
+                    addMessage(`✅ ${data.message}`, false);
+                }
+            } catch (error) {
+                addMessage(`Error: ${error.message}`, false);
+            } finally {
+                testVoiceButton.disabled = false;
+            }
+        }
+
+        // Voice event listeners
+        voiceChatButton.addEventListener('click', startVoiceChat);
+        listenButton.addEventListener('click', listenToSpeech);
+        speakButton.addEventListener('click', speakText);
+        testVoiceButton.addEventListener('click', testVoiceServices);
+
+        // Check voice status on page load
+        checkVoiceStatus();
+        
+        // Focus on input when page loads
+        messageInput.focus();
+    </script>
+</body>
+</html>
