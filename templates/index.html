@@ -327,6 +327,7 @@ Disclaimer: Provided "as is" without warranty. Use at your own risk.
                 <button class="voice-button" id="voiceChatButton" disabled>🎤 Voice Chat</button>
                 <button class="voice-button" id="listenButton" disabled>👂 Listen</button>
                 <button class="voice-button" id="testVoiceButton" disabled>🧪 Test Voice</button>
+                <button class="voice-button" id="textToSpeechButton" disabled>📝🔊 Text to Speech</button>
             </div>
             
             <div class="chat-input-row">
@@ -351,6 +352,7 @@ Disclaimer: Provided "as is" without warranty. Use at your own risk.
         const listenButton = document.getElementById('listenButton');
         const speakButton = document.getElementById('speakButton');
         const testVoiceButton = document.getElementById('testVoiceButton');
+        const textToSpeechButton = document.getElementById('textToSpeechButton');
         const recordingIndicator = document.getElementById('recordingIndicator');
         
         let isVoiceEnabled = false;
@@ -471,6 +473,7 @@ Disclaimer: Provided "as is" without warranty. Use at your own risk.
                     listenButton.disabled = false;
                     speakButton.disabled = false;
                     testVoiceButton.disabled = false;
+                    textToSpeechButton.disabled = false;
                 } else {
                     voiceStatus.textContent = '❌ Voice services unavailable';
                     voiceStatus.className = 'voice-status unavailable';
@@ -604,11 +607,58 @@ Disclaimer: Provided "as is" without warranty. Use at your own risk.
             }
         }
 
+        async function textToSpeechChat() {
+            if (!isVoiceEnabled) return;
+            
+            const message = messageInput.value.trim();
+            if (!message) {
+                addMessage('Please enter text for text-to-speech chat', false);
+                return;
+            }
+            
+            try {
+                textToSpeechButton.disabled = true;
+                
+                // Add user message
+                addMessage(message, true);
+                messageInput.value = '';
+                
+                // Show loading
+                loading.style.display = 'block';
+                
+                const response = await fetch('/text-to-speech', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    addMessage(`Error: ${data.error}`, false);
+                } else {
+                    addMessage(data.bot_response, false);
+                    if (data.spoken) {
+                        addMessage('🔊 Response spoken via voice', false);
+                    }
+                }
+            } catch (error) {
+                addMessage(`Error: ${error.message}`, false);
+            } finally {
+                textToSpeechButton.disabled = false;
+                loading.style.display = 'none';
+                messageInput.focus();
+            }
+        }
+
         // Voice event listeners
         voiceChatButton.addEventListener('click', startVoiceChat);
         listenButton.addEventListener('click', listenToSpeech);
         speakButton.addEventListener('click', speakText);
         testVoiceButton.addEventListener('click', testVoiceServices);
+        textToSpeechButton.addEventListener('click', textToSpeechChat);
 
         // Check voice status on page load
         checkVoiceStatus();

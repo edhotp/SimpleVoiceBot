@@ -89,15 +89,28 @@ Kemudian buka browser dan akses: `http://localhost:5000`
 - 🎤 **Voice Chat** - Bicara langsung ke chatbot
 - 👂 **Listen** - Input suara ke text box
 - 🔊 **Speak** - Ucapkan teks yang ada di input
+- 📝🔊 **Text to Speech** - Ketik pesan, bot respons dengan suara
 - 🧪 **Test Voice** - Test speech services
+
+### 4. Text-to-Speech Chatbot (CLI)
+Mode khusus dimana user mengetik tapi bot merespons dengan suara:
+```bash
+python text_to_speech_main.py
+```
+
+**Keunggulan mode ini:**
+- User input via keyboard (lebih akurat)
+- Bot respons via voice synthesis
+- Ideal untuk accessibility atau multitasking
 
 ## Struktur Project
 
 ```
 45.SampleVoicebot/
-├── main.py              # CLI chatbot application (text only)
-├── voice_main.py        # Voice chatbot CLI application
-├── web_app.py           # Web chatbot application (Flask) with voice
+├── main.py                  # CLI chatbot application (text only)
+├── voice_main.py            # Voice chatbot CLI application  
+├── text_to_speech_main.py   # Text-to-Speech CLI application
+├── web_app.py               # Web chatbot application (Flask) with voice
 ├── chatbot.py           # Core chatbot class
 ├── speech_service.py    # Azure Speech service integration
 ├── demo.py              # Demo script untuk semua fitur

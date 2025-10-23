@@ -24,6 +24,7 @@ def chat():
     try:
         data = request.get_json()
         user_message = data.get('message', '')
+        speak_response = data.get('speak_response', False)  # New parameter for voice response
         
         if not user_message:
             return jsonify({'error': 'No message provided'}), 400
@@ -31,9 +32,19 @@ def chat():
         # Get response from chatbot
         response = bot.get_response(user_message, stream=False)
         
+        # Speak the response if requested
+        if speak_response and bot.speech_enabled:
+            success = bot.speak_response(response)
+            return jsonify({
+                'response': response,
+                'status': 'success',
+                'spoken': success
+            })
+        
         return jsonify({
             'response': response,
-            'status': 'success'
+            'status': 'success',
+            'spoken': False
         })
         
     except Exception as e:
@@ -58,11 +69,40 @@ def chat_stream():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/clear', methods=['POST'])
+@app.route('/clear-history', methods=['POST'])
 def clear_history():
     try:
         bot.clear_history()
         return jsonify({'status': 'success', 'message': 'History cleared'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/text-to-speech', methods=['POST'])
+def text_to_speech():
+    """Text input with voice response"""
+    try:
+        data = request.get_json()
+        user_message = data.get('message', '')
+        
+        if not user_message:
+            return jsonify({'error': 'No message provided'}), 400
+        
+        if not bot.speech_enabled:
+            return jsonify({'error': 'Speech services tidak tersedia'}), 400
+        
+        # Get text response from chatbot
+        response = bot.get_response(user_message, stream=False)
+        
+        # Speak the response
+        success = bot.speak_response(response)
+        
+        return jsonify({
+            'user_input': user_message,
+            'bot_response': response,
+            'status': 'success',
+            'spoken': success
+        })
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
